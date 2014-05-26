@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="public/bootstrap.min.css">
+		<link rel="stylesheet" type="text/css" href="public/style.css">
+		<script type="text/javascript" src="public/jquery.min.js"></script>
+		<script type="text/javascript" src="public/bootstrap.min.js"></script>
+	</head>
+	<body>
+		<div class="card">
+			<div class="clearfix">
+				<div class="title pull-left"><%= card.name %></div>
+				<div class="casting pull-right clearfix">
+					<div class="cost pull-left"><%= card.manaCost %></div>
+				</div>
+			</div>
+			<div class="image"><%= card.set %></div>
+			<div class="clearfix">
+				<div class="type pull-left <%= card.type.length > 25 ? 'small' : '' %>"><%= card.type %></div>
+				<div class="set pull-right"><%= card.rarity[0] %></div>
+			</div>
+			<div class="text <%= card.text.length > 250 ? 'smallest' : (card.text.length > 150 ? 'smaller' : (card.text.length > 100 ? 'small' : '')) %>"><%- card.text %></div>
+			<div class="number pull-left">#<%= card.number %></div>
+			<div class="strength pull-right <%= card.strength || 'hidden' %>"><%= card.strength || '' %></div>
+		</div>
+	</body>
+</html>
