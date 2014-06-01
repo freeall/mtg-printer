@@ -1,3 +1,4 @@
 node_modules
-.tmp.html
+cards
 .DS_Store
+stats.js
