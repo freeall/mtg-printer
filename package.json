@@ -1,12 +1,14 @@
 {
-  "name": "mtg-creator",
+  "name": "mtg-printer",
   "version": "0.0.0",
   "description": "",
   "main": "index.js",
   "author": "Tobias Baunbæk <freeall@gmail.com>",
   "license": "MIT",
+  "repository": "git@github.com:freeall/mtg-printer.git",
   "dependencies": {
     "mtgjson": "^0.1.4",
+    "mtgjson-render": "^0.1.1",
     "single-line-log": "^0.4.0",
     "terminal-menu": "^0.3.2"
   }
