@@ -3,13 +3,11 @@
   "version": "0.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "author": "Tobias Baunbæk <freeall@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "pejs": "^0.6.5",
-    "phantom-render-stream": "^0.5.0"
+    "mtgjson": "^0.1.4",
+    "single-line-log": "^0.4.0",
+    "terminal-menu": "^0.3.2"
   }
 }

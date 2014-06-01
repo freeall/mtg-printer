@@ -1,60 +1,129 @@
-var phantom = require('phantom-render-stream');
+var terminalMenu = require('terminal-menu');
+var mtgjson = require('mtgjson');
 var fs = require('fs');
-var pejs = require('pejs');
+var log = require('single-line-log').stdout;
+var renderer = require('mtgjson-render');
+var sets = {};
 
-var views = pejs();
-var renderHtml = phantom({
-	format: 'png',
-	width: 265,
-	height: 370
+var renderCard = renderer({
+	zoom: 2
 });
 
-var render = function(card, set, callback) {
-	if (card.power && card.toughness) card.strength = card.power + '/' + card.toughness;
-	if (card.loyalty) card.strength = card.loyalty;
+var outstream = function(card, set) {
+	return fs.createWriteStream('cards/' + set.name + ' - ' + (card.number ? card.number +' - ' : '') + card.name + '.png');
+};
 
-	card.manaCost = card.manaCost || '';
-	card.text = card.text || '';
+var renderSet = function(set, callback) {
+	set = JSON.parse(JSON.stringify(set));
 
-	card.set = set;
-	card.manaCost = card.manaCost.replace(/[\{\}]/g, '');
-	card.text = card.text.replace(/\{T\}/g, '<span class="tap"></span>');
-	card.text = card.text.replace(/\{([WUBRGX\d]+)\}/g, '$1');
-	card.text = card.text.replace(/\n\n/g, '<br />');
-	card.text = card.text.replace(/\n/g, '<br />');
-	card.type = card.type.replace(/—/g, '-'); // quick fix for weird '-'' character
-	card.text = card.text.replace(/—/g, '-'); // quick fix for weird '-'' character
+	(function loop() {
+		var card = set.cards.pop();
 
-	views.render('./card.ejs', {card:card}, function(err, html) {
-		if (err) return callback(err);
+		if (!card) return callback();
 
-		fs.writeFile('.tmp.html', html, function(err) {
+		log('Left: ' + (set.cards.length+1) + ' - ' + card.name + (card.number ? ' ('+ card.number + ')' : ''));
+
+		renderCard(card, set.name, function(err, stream) {
 			if (err) return callback(err);
 
-			var str = fs.createWriteStream('cards/' + set + ' - ' + card.number + ' - ' + card.name + '.png');
-			renderHtml('.tmp.html').pipe(str);
-			str.on('close', callback);
+			stream.pipe(outstream(card, set));
+			stream.on('end', loop);
 		});
+	}());
+};
+
+var newMenu = function() {
+	var menu = terminalMenu({ x:4, y:2 });
+	menu.createStream().pipe(process.stdout);
+	menu.reset();
+	return menu;
+};
+
+var exit = function() {
+	process.stdin.setRawMode(false);
+	process.exit();
+};
+
+var listSets = function(filter) {
+	filter = (filter || '').toUpperCase();
+
+	var menu = newMenu();
+	menu.write('CHOOSE SET\n');
+	menu.write('----------\n');
+	menu.write('FILTER: '+filter+'\n');
+	var count = 0;
+	sets.forEach(function(set) {
+		if (count > 20) return;
+		if (set.name.toUpperCase().indexOf(filter) < 0) return;
+
+		count++
+
+		menu.add(set.releaseDate + ' - ' + set.name + ' (' + set.cards.length + ')', function() {
+			menu.close();
+			listSet(set);
+		});
+	});
+
+	menu.on('keypress', function(key) {
+		menu.close();
+		if (key === '27') return exit();
+		if (key === '127') return listSets(filter.length > 0 ? filter.substr(0, filter.length-1) : '');
+		listSets(filter += String.fromCharCode(key));
 	});
 };
 
+var listSet = function(set, filter) {
+	filter = (filter || '').toUpperCase();
+	var menu = newMenu();
+	menu.write('CHOOSE CARD TO PRINT\n');
+	menu.write('--------------------\n');
+	menu.write('FILTER: '+filter+'\n');
+	menu.add('PRINT ALL CARDS', function() {
+		menu.close();
+		renderSet(set, function(err) {
+			if (err) return console.log(err);
 
-var file = process.argv[2];
-
-if (!file) return console.log('Run as node . myset.json');
-
-var data = JSON.parse(fs.readFileSync(file));
-var set = data.name;
-(function loop() {
-	var card = data.cards.pop();
-
-	if (!card) return console.log('done');
-
-	console.log('Left: ' + (data.cards.length+1) + ' - ' + card.name + ' ('+ card.number + ')');
-
-	render(card, set, function(err) {
-		if (err) return console.log(err);
-
-		loop();
+			listSet(set, filter);
+		});
 	});
-})();
+
+	var count = 0;
+	set.cards.forEach(function(card) {
+		if (count > 20) return;
+		if (card.name.toUpperCase().indexOf(filter) < 0) return;
+
+		count++;
+
+		menu.add(card.name, function() {
+			menu.close();
+			renderCard(card, set.name, function(err, stream) {
+				if (err) throw err;
+
+				stream.pipe(outstream(card, set));
+				stream.on('end', function() {
+					listSet(set, filter);
+				});
+			});
+		});
+	});
+
+	menu.on('keypress', function(key) {
+		menu.close();
+		if (key === '27') return listSets();
+		if (key === '127') return listSet(set, filter.length > 0 ? filter.substr(0, filter.length-1) : '');
+		listSet(set, filter += String.fromCharCode(key));
+	});
+};
+
+fs.mkdir('cards', function() {});
+
+mtgjson(function(err, data) {
+	if (err) throw err;
+
+	sets = Object.keys(data).map(function(k) {
+		return data[k];
+	}).sort(function(a,b) {
+		return a.releaseDate.localeCompare(b.releaseDate);
+	});
+	listSets();
+});
